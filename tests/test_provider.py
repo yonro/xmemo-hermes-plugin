@@ -19,16 +19,20 @@ from typing import Any, Dict, List
 import pytest
 
 
-def _load_plugin_from_temp(tmp_dir: Path):
+def _load_plugin_from_temp(tmp_dir: Path, src: Path | None = None):
     """Copy this plugin into a temp HERMES_HOME and load it as external plugin."""
     from plugins.memory import _MEMORY_PLUGINS_DIR, load_memory_provider
 
-    src = Path(__file__).parent.parent / "xmemo"
+    src = src or (Path(__file__).parent.parent / "xmemo")
     dst = tmp_dir / "plugins" / "xmemo"
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+    shutil.copytree(
+        src,
+        dst,
+        ignore=shutil.ignore_patterns("__pycache__", ".git", ".pytest_cache", "tests"),
+    )
 
     # Clear cached external plugin modules
     for mod in list(sys.modules.keys()):
@@ -119,6 +123,18 @@ class FakeClient:
 
 
 def test_external_load(provider):
+    assert provider.name == "xmemo"
+
+
+def test_readme_clone_layout_loads(tmp_path):
+    """README instructs cloning the whole repo into $HERMES_HOME/plugins/xmemo."""
+    os.environ["HERMES_HOME"] = str(tmp_path)
+    repo_root = Path(__file__).parent.parent
+    provider = _load_plugin_from_temp(
+        tmp_path,
+        src=repo_root,
+    )
+    assert provider is not None
     assert provider.name == "xmemo"
 
 
