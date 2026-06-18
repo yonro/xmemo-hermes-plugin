@@ -36,8 +36,9 @@ history, logs, or git-tracked files.
 
 `hermes memory setup xmemo` offers two ways to authenticate:
 
-1. **API key** — paste a token from [xmemo.dev](https://xmemo.dev). The token is
-   validated immediately against the `/health` endpoint.
+1. **API key** — create a scoped token at [xmemo.dev](https://xmemo.dev)
+   (Settings → API Tokens / Connectors) and paste it. The token is validated
+   immediately against the `/health` endpoint.
 2. **Device login** — the plugin shows a URL and a user code. Open the URL in
    your browser, approve the request, and the CLI polls XMemo for the access
    token. No long-lived token needs to be copied by hand.

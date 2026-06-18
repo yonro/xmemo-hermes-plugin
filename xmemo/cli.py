@@ -209,7 +209,7 @@ def _configure_auth(provider_config: Dict[str, Any], env_writes: Dict[str, str])
             masked = f"...{existing[-4:]}" if len(existing) > 4 else "set"
             prompt_text = f"XMemo service token (current: {masked}, blank to keep)"
         else:
-            print("  Get yours at https://xmemo.dev")
+            print("  Create a token at https://xmemo.dev (Settings -> API Tokens / Connectors)")
             prompt_text = "XMemo service token"
         val = _prompt(prompt_text, secret=True)
         if not val:
