@@ -105,25 +105,25 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         max_items: int = 5,
         max_tokens: int = 900,
         memory_type: str = "auto",
         prefer_working: bool = True,
     ) -> Dict[str, Any]:
         """Build a bounded context pack from XMemo memories."""
-        return self._request(
-            "POST",
-            "/v1/recall/context",
-            json_body={
-                "query": query,
-                "bucket": bucket,
-                "scope": scope,
-                "max_items": max_items,
-                "max_tokens": max_tokens,
-                "memory_type": memory_type,
-                "prefer_working": prefer_working,
-            },
-        )
+        json_body: Dict[str, Any] = {
+            "query": query,
+            "bucket": bucket,
+            "scope": scope,
+            "max_items": max_items,
+            "max_tokens": max_tokens,
+            "memory_type": memory_type,
+            "prefer_working": prefer_working,
+        }
+        if team_id:
+            json_body["team_id"] = team_id
+        return self._request("POST", "/v1/recall/context", json_body=json_body)
 
     def search(
         self,
@@ -131,25 +131,25 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         memory_type: str = "%",
         limit: int = 5,
         explain: bool = False,
         prefer_working: bool = False,
     ) -> List[Dict[str, Any]]:
         """Semantic search over XMemo memories."""
-        result = self._request(
-            "GET",
-            "/v1/memories/search",
-            params={
-                "query": query,
-                "bucket": bucket,
-                "scope": scope,
-                "memory_type": memory_type,
-                "limit": limit,
-                "explain": explain,
-                "prefer_working": prefer_working,
-            },
-        )
+        params: Dict[str, Any] = {
+            "query": query,
+            "bucket": bucket,
+            "scope": scope,
+            "memory_type": memory_type,
+            "limit": limit,
+            "explain": explain,
+            "prefer_working": prefer_working,
+        }
+        if team_id:
+            params["team_id"] = team_id
+        result = self._request("GET", "/v1/memories/search", params=params)
         if isinstance(result, dict):
             return result.get("results", []) or []
         if isinstance(result, list):
@@ -163,6 +163,7 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         memory_type: str = "semantic",
         importance: Optional[float] = None,
         confidence: Optional[float] = None,
@@ -178,6 +179,8 @@ class XMemoClient:
             "memory_type": memory_type,
             "dedupe": dedupe,
         }
+        if team_id:
+            payload["team_id"] = team_id
         if importance is not None:
             payload["importance"] = importance
         if confidence is not None:
@@ -196,6 +199,7 @@ class XMemoClient:
         blocked_reason: str = "",
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         ttl_seconds: int = 86400,
     ) -> Dict[str, Any]:
         """Persist active working state with TTL."""
@@ -205,6 +209,8 @@ class XMemoClient:
             "scope": scope,
             "ttl_seconds": ttl_seconds,
         }
+        if team_id:
+            payload["team_id"] = team_id
         if content:
             payload["content"] = content
         if current_task:
@@ -222,6 +228,7 @@ class XMemoClient:
         event_type: str = "event",
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         session_id: str = "",
     ) -> Dict[str, Any]:
         """Append a timeline event."""
@@ -231,6 +238,8 @@ class XMemoClient:
             "bucket": bucket,
             "scope": scope,
         }
+        if team_id:
+            payload["team_id"] = team_id
         if session_id:
             payload["session_id"] = session_id
         return self._request("POST", "/v1/timeline/events", json_body=payload)
@@ -241,6 +250,7 @@ class XMemoClient:
         session_id: str = "",
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         state_key: str = "active_task",
     ) -> Dict[str, Any]:
         """Capture a restart snapshot before handoff or shutdown."""
@@ -249,6 +259,8 @@ class XMemoClient:
             "scope": scope,
             "state_key": state_key,
         }
+        if team_id:
+            payload["team_id"] = team_id
         if session_id:
             payload["session_id"] = session_id
         return self._request("POST", "/v1/restart/snapshot", json_body=payload)
@@ -259,6 +271,7 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         due_at: str = "",
         session_id: str = "",
     ) -> Dict[str, Any]:
@@ -268,6 +281,8 @@ class XMemoClient:
             "bucket": bucket,
             "scope": scope,
         }
+        if team_id:
+            payload["team_id"] = team_id
         if due_at:
             payload["due_at"] = due_at
         if session_id:
@@ -279,20 +294,20 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         item_status: str = "open",
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
         """List open or completed TODO items."""
-        result = self._request(
-            "GET",
-            "/v1/reminders",
-            params={
-                "bucket": bucket,
-                "scope": scope,
-                "item_status": item_status,
-                "limit": limit,
-            },
-        )
+        params: Dict[str, Any] = {
+            "bucket": bucket,
+            "scope": scope,
+            "item_status": item_status,
+            "limit": limit,
+        }
+        if team_id:
+            params["team_id"] = team_id
+        result = self._request("GET", "/v1/reminders", params=params)
         if isinstance(result, dict):
             return result.get("items", []) or result.get("reminders", []) or []
         if isinstance(result, list):
@@ -305,10 +320,13 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         note: str = "",
     ) -> Dict[str, Any]:
         """Mark a TODO item as completed."""
         payload: Dict[str, Any] = {"bucket": bucket, "scope": scope}
+        if team_id:
+            payload["team_id"] = team_id
         if note:
             payload["note"] = note
         return self._request(
@@ -346,10 +364,13 @@ class XMemoClient:
         *,
         bucket: str = "work",
         scope: str = "hermes/default",
+        team_id: str = "",
         reason: str = "",
     ) -> Dict[str, Any]:
         """Delete a memory by exact id."""
         payload: Dict[str, Any] = {"bucket": bucket, "scope": scope}
+        if team_id:
+            payload["team_id"] = team_id
         if reason:
             payload["reason"] = reason
         return self._request(

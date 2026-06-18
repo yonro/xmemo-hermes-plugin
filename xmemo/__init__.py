@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-from .client import XMemoClient
+from .client import XMemoClient, XMemoClientError
 from .config import load_config, save_config
 
 logger = logging.getLogger(__name__)
@@ -462,17 +462,17 @@ class XMemoMemoryProvider(MemoryProvider):
     def get_config_schema(self) -> List[Dict[str, Any]]:
         return [
             {
+                "key": "base_url",
+                "description": "XMemo service URL",
+                "default": "https://xmemo.dev",
+            },
+            {
                 "key": "api_key",
                 "description": "XMemo service token",
                 "secret": True,
                 "required": True,
                 "env_var": "XMEMO_KEY",
                 "url": "https://xmemo.dev",
-            },
-            {
-                "key": "base_url",
-                "description": "XMemo service URL",
-                "default": "https://xmemo.dev",
             },
             {
                 "key": "agent_id",
@@ -489,6 +489,11 @@ class XMemoMemoryProvider(MemoryProvider):
                 "key": "scope",
                 "description": "Default project/session scope",
                 "default": "hermes/default",
+            },
+            {
+                "key": "team_id",
+                "description": "Optional team ID for team-shared memories",
+                "default": "",
             },
             {
                 "key": "timeout_seconds",
@@ -588,6 +593,15 @@ class XMemoMemoryProvider(MemoryProvider):
             client = self._get_client()
             client.health()
             self._record_success()
+        except XMemoClientError as exc:
+            if exc.status_code == 409:
+                logger.warning(
+                    "XMemo account setup is required before the memory provider can be used. "
+                    "Complete onboarding at %s and then restart your Hermes session.",
+                    self._config.get("base_url", "https://xmemo.dev"),
+                )
+            else:
+                logger.debug("XMemo health check failed (non-blocking): %s", exc)
         except Exception as exc:
             logger.debug("XMemo health check failed (non-blocking): %s", exc)
 
@@ -649,6 +663,7 @@ class XMemoMemoryProvider(MemoryProvider):
                     query=query,
                     bucket=self._config.get("bucket", "work"),
                     scope=self._config.get("scope", "hermes/default"),
+                    team_id=self._config.get("team_id", ""),
                     max_items=int(self._config.get("prefetch_max_items", 5)),
                     max_tokens=int(self._config.get("prefetch_max_tokens", 900)),
                     prefer_working=True,
@@ -700,6 +715,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 event_type="session_event",
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 session_id=session_id or self._session_id,
             )
             self._record_success()
@@ -773,6 +789,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 query=query,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 memory_type=memory_type,
                 limit=limit,
             )
@@ -810,6 +827,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 path=path,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 memory_type=memory_type,
                 importance=importance,
             )
@@ -842,6 +860,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 blocked_reason=blocked_reason,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 ttl_seconds=ttl_seconds,
             )
             self._record_success()
@@ -870,6 +889,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 query=query,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 max_items=max_items,
                 max_tokens=int(self._config.get("prefetch_max_tokens", 900)),
                 memory_type=memory_type,
@@ -900,6 +920,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 event_type=event_type,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 session_id=self._session_id,
             )
             self._record_success()
@@ -924,6 +945,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 due_at=due_at,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 session_id=self._session_id,
             )
             self._record_success()
@@ -946,6 +968,7 @@ class XMemoMemoryProvider(MemoryProvider):
             items = client.list_reminders(
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 item_status=item_status,
                 limit=limit,
             )
@@ -973,6 +996,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 note=note,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
             )
             self._record_success()
             return json.dumps({
@@ -1017,6 +1041,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 reason=reason,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
             )
             self._record_success()
             return json.dumps({
@@ -1093,6 +1118,7 @@ class XMemoMemoryProvider(MemoryProvider):
                 path=path,
                 bucket=self._config.get("bucket", "work"),
                 scope=self._config.get("scope", "hermes/default"),
+                team_id=self._config.get("team_id", ""),
                 memory_type="semantic",
             )
             self._record_success()
@@ -1114,6 +1140,7 @@ class XMemoMemoryProvider(MemoryProvider):
                     session_id=self._session_id,
                     bucket=self._config.get("bucket", "work"),
                     scope=self._config.get("scope", "hermes/default"),
+                    team_id=self._config.get("team_id", ""),
                 )
                 self._record_success()
             except Exception as exc:

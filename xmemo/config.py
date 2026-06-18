@@ -87,6 +87,7 @@ def load_config(*, create_instance: bool = False) -> Dict[str, Any]:
 
     bucket = os.environ.get("XMEMO_BUCKET") or file_cfg.get("bucket", DEFAULT_BUCKET)
     scope = os.environ.get("XMEMO_SCOPE") or file_cfg.get("scope", DEFAULT_SCOPE)
+    team_id = os.environ.get("XMEMO_TEAM_ID") or file_cfg.get("team_id", "")
 
     timeout = file_cfg.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)
     if "XMEMO_TIMEOUT_SECONDS" in os.environ:
@@ -120,6 +121,7 @@ def load_config(*, create_instance: bool = False) -> Dict[str, Any]:
         "agent_instance_id": agent_instance_id,
         "bucket": bucket,
         "scope": scope,
+        "team_id": team_id,
         "timeout_seconds": timeout,
         "prefetch_max_items": prefetch_max_items,
         "prefetch_max_tokens": prefetch_max_tokens,

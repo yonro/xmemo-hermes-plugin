@@ -7,7 +7,8 @@ snapshots across sessions and tools.
 ## Requirements
 
 - Hermes already depends on `httpx`.
-- XMemo service token from [xmemo.dev](https://xmemo.dev).
+- An XMemo account at [xmemo.dev](https://xmemo.dev).
+- Authentication via **API key** or **browser device-login flow**.
 
 ## Install
 
@@ -31,6 +32,19 @@ This writes:
 The API key is never written to `xmemo.json`. Do not paste tokens into shell
 history, logs, or git-tracked files.
 
+### Authentication
+
+`hermes memory setup xmemo` offers two ways to authenticate:
+
+1. **API key** — paste a token from [xmemo.dev](https://xmemo.dev). The token is
+   validated immediately against the `/health` endpoint.
+2. **Device login** — the plugin shows a URL and a user code. Open the URL in
+   your browser, approve the request, and the CLI polls XMemo for the access
+   token. No long-lived token needs to be copied by hand.
+
+If your XMemo account has not completed onboarding, setup will tell you to
+finish setup in the browser first (HTTP 409 `setup_required`).
+
 ## Config
 
 Config file: `$HERMES_HOME/xmemo.json`
@@ -42,6 +56,7 @@ Config file: `$HERMES_HOME/xmemo.json`
 | `agent_instance_id` | auto-generated | Stable install identifier (random UUID) |
 | `bucket` | `work` | Storage namespace |
 | `scope` | `hermes/default` | Project/session scope |
+| `team_id` | `""` | Optional team ID for team-shared memories |
 | `timeout_seconds` | `5.0` | REST request timeout |
 | `prefetch_max_items` | `5` | Max context items per recall |
 | `prefetch_max_tokens` | `900` | Max context tokens per recall |

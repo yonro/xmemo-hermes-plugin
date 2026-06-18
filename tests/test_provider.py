@@ -253,3 +253,113 @@ def test_rest_mark_used_usage_endpoint():
     assert body["action"] == "used"
     assert "bucket" not in body
     assert "scope" not in body
+
+
+def test_team_id_passed_to_api_calls(provider, monkeypatch):
+    provider._config["team_id"] = "team-abc"
+    fake = FakeClient()
+    monkeypatch.setattr(provider, "_get_client", lambda: fake)
+
+    provider.handle_tool_call(
+        "xmemo_remember",
+        {"content": "team note", "path": "hermes/team-note"},
+    )
+    remember_call = fake.calls[0]
+    assert remember_call["team_id"] == "team-abc"
+
+
+def test_setup_required_409_does_not_crash_initialize(tmp_path, monkeypatch):
+    from xmemo.client import XMemoClientError
+
+    os.environ["HERMES_HOME"] = str(tmp_path)
+    os.environ["XMEMO_KEY"] = "test-key"
+    provider = _load_plugin_from_temp(tmp_path)
+
+    calls = []
+
+    class FailingHealthClient:
+        def health(self):
+            calls.append("health")
+            raise XMemoClientError("setup required", status_code=409)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(provider, "_get_client", lambda: FailingHealthClient())
+
+    provider.initialize("test-session")
+    assert calls == ["health"]
+
+
+def test_validate_api_key_ok():
+    from xmemo.cli import _validate_api_key
+    from xmemo.client import XMemoClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "ok"})
+
+    client = XMemoClient(
+        base_url="https://xmemo.dev",
+        api_key="test-key",
+        transport=httpx.MockTransport(handler),
+    )
+    ok, msg = _validate_api_key("https://xmemo.dev", "test-key", client=client)
+    assert ok is True
+    assert msg == ""
+
+
+def test_validate_api_key_setup_required():
+    from xmemo.cli import _validate_api_key
+    from xmemo.client import XMemoClient
+
+    client = XMemoClient(
+        base_url="https://xmemo.dev",
+        api_key="test-key",
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(409, json={"setup_state": "setup_required"})
+        ),
+    )
+    ok, msg = _validate_api_key("https://xmemo.dev", "test-key", client=client)
+    assert ok is False
+    assert "setup is required" in msg
+
+
+def test_device_login_returns_token(monkeypatch):
+    from xmemo.cli import _run_device_login
+    import time
+
+    responses = {
+        "start": httpx.Response(
+            200,
+            json={
+                "device_code": "dev-123",
+                "user_code": "USER-CODE",
+                "verification_uri": "https://xmemo.dev/device-login",
+                "verification_uri_complete": "https://xmemo.dev/device-login?user_code=USER-CODE",
+                "expires_in": 600,
+                "interval": 1,
+            },
+        ),
+        "pending": httpx.Response(
+            400,
+            json={"error": "authorization_pending"},
+        ),
+        "token": httpx.Response(
+            200,
+            json={"access_token": "tok_abc:secret", "token_type": "Bearer"},
+        ),
+    }
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/start"):
+            return responses["start"]
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return responses["pending"]
+        return responses["token"]
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    token = _run_device_login("https://xmemo.dev", timeout_seconds=10.0, client=client)
+    assert token == "tok_abc:secret"
