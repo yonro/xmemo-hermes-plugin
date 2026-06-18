@@ -10,14 +10,18 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Make the nested xmemo/ package importable when this directory is loaded by
-# Hermes' external memory-provider discovery (which does not put the plugin
-# directory on sys.path by default).
-_provider_dir = Path(__file__).parent
-if str(_provider_dir) not in sys.path:
-    sys.path.insert(0, str(_provider_dir))
-
-from xmemo import XMemoMemoryProvider
+# Hermes loads this directory as a package, so prefer a relative import of the
+# nested implementation package. This avoids collisions with any existing
+# ``sys.modules["xmemo"]`` that may already be present in the process.
+try:
+    from .xmemo import XMemoMemoryProvider
+except ImportError:
+    # Fallback for environments that import this file as a bare module
+    # (e.g., pytest collecting a repo whose directory name contains '-').
+    _provider_dir = Path(__file__).parent
+    if str(_provider_dir) not in sys.path:
+        sys.path.insert(0, str(_provider_dir))
+    from xmemo import XMemoMemoryProvider
 
 
 def register(ctx) -> None:

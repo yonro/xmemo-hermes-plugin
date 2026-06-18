@@ -138,6 +138,27 @@ def test_readme_clone_layout_loads(tmp_path):
     assert provider.name == "xmemo"
 
 
+def test_load_with_prefilled_xmemo_module(tmp_path):
+    """The shim must not reuse a pre-existing sys.modules['xmemo'] entry."""
+    import types
+
+    os.environ["HERMES_HOME"] = str(tmp_path)
+    repo_root = Path(__file__).parent.parent
+
+    dummy = types.ModuleType("xmemo")
+    original = sys.modules.get("xmemo")
+    sys.modules["xmemo"] = dummy
+    try:
+        provider = _load_plugin_from_temp(tmp_path, src=repo_root)
+        assert provider is not None
+        assert provider.name == "xmemo"
+    finally:
+        if original is None:
+            sys.modules.pop("xmemo", None)
+        else:
+            sys.modules["xmemo"] = original
+
+
 def test_default_tool_schemas(provider):
     names = {s["name"] for s in provider.get_tool_schemas()}
     assert names == {
