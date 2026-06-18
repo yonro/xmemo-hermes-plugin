@@ -23,12 +23,12 @@ def _load_plugin_from_temp(tmp_dir: Path):
     """Copy this plugin into a temp HERMES_HOME and load it as external plugin."""
     from plugins.memory import _MEMORY_PLUGINS_DIR, load_memory_provider
 
-    src = Path(__file__).parent.parent
+    src = Path(__file__).parent.parent / "xmemo"
     dst = tmp_dir / "plugins" / "xmemo"
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", ".git", "tests"))
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", ".git"))
 
     # Clear cached external plugin modules
     for mod in list(sys.modules.keys()):
@@ -171,7 +171,7 @@ def test_capture_timeline_false_no_auto_write(provider, monkeypatch):
 
 
 def test_redaction_replaces_token(provider, monkeypatch, tmp_path):
-    from plugins.memory.xmemo.config import save_config
+    from xmemo.config import save_config
 
     os.environ["HERMES_HOME"] = str(tmp_path)
     save_config({"capture_timeline": True}, str(tmp_path))
@@ -179,19 +179,22 @@ def test_redaction_replaces_token(provider, monkeypatch, tmp_path):
     # Re-load plugin with capture_timeline enabled
     provider2 = _load_plugin_from_temp(tmp_path)
     provider2.initialize("test-session")
+    provider2._config["api_key"] = "test-key"
 
     fake = FakeClient()
     monkeypatch.setattr(provider2, "_get_client", lambda: fake)
 
     secret = "sk-" + "a" * 50
     provider2.sync_turn(f"remember this token {secret}", "ok")
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["method"] == "record_event"
     content = fake.calls[0]["content"]
     assert secret not in content
     assert "[REDACTED]" in content
 
 
 def test_rest_mark_used_usage_endpoint():
-    from plugins.memory.xmemo.client import XMemoClient
+    from xmemo.client import XMemoClient
 
     requests: List[httpx.Request] = []
 
